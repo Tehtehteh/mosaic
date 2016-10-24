@@ -4,7 +4,8 @@ import os
 import PIL
 import json
 
-#todo [{'url':url, 'name': name}] for file list when creating initial image storage 
+#todo [{'url':url, 'name': name}] for file list when creating initial image storage --- Done
+#todo  
 
 class imgbuilder:
     def __init__(self, query=None):
@@ -23,15 +24,19 @@ class imgbuilder:
             raise RuntimeError
         else:
             jsonresp = json.loads(self.respond.text.split('jsonFlickrApi(')[1][:-1])
-        for photo in jsonresp['photos']['photo']:
-            self.links.append('https://farm{0}.staticflickr.com/{1}/{2}_{3}_m.jpg'.format(photo['farm'], photo['server'], photo['id'], photo['secret']))
+        for photo in jsonresp['photos']['photo']:            
+            self.links.append({ 'url' : 'https://farm{0}.staticflickr.com/{1}/{2}_{3}_n.jpg'.format(photo['farm'], photo['server'], photo['id'], photo['secret']),
+                                'name':  photo['secret']})
 
     def downloadImages(self):
         if not os.path.exists(self.storage):
             os.mkdir(self.storage)
         for num, photo in enumerate(self.links):
-            data = requests.get(photo, stream=True)
-            with open(os.path.join(self.storage, '{}.jpg'.format(num)), 'wb') as handle:
+            data = requests.get(photo['url'], stream=True)
+            with open(os.path.join(self.storage, '{}.jpg'.format(photo['name'])), 'wb') as handle:
                 print('Processing %i of %i' % (num, len(self.links)))
                 for buff in data.iter_content():
                     handle.write(buff)
+
+    def buildShelve(self):
+        assert self.link

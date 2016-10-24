@@ -1,11 +1,11 @@
 import requests
 import shelve
 import os
-import PIL
+from PIL import Image
 import json
 
 #todo [{'url':url, 'name': name}] for file list when creating initial image storage --- Done
-#todo  
+#todo build shelve based of PIL 
 
 class imgbuilder:
     def __init__(self, query=None):
@@ -34,9 +34,10 @@ class imgbuilder:
         for num, photo in enumerate(self.links):
             data = requests.get(photo['url'], stream=True)
             with open(os.path.join(self.storage, '{}.jpg'.format(photo['name'])), 'wb') as handle:
-                print('Processing %i of %i' % (num, len(self.links)))
+                print('Processing %i of %i' % (num + 1, len(self.links)))
                 for buff in data.iter_content():
                     handle.write(buff)
 
     def buildShelve(self):
-        assert self.link
+        for image in self.links:
+             im = Image.open(os.path.join(self.storage, image['name']))

@@ -6,7 +6,13 @@ except ImportError:
 
 def main():
     im = imgbuild.imgbuilder()
-    im.getImageLinks()
-    im.downloadImages()
-
+    #im.getImageLinks()
+    #im.downloadImages()
+    #print(im.files)
+    #im.buildShelve()
+    #im.buildThumbnails()
+    #print(im.thumbnails)
+    mosaic = imgbuild.mosaicbuilder()
+    mosaic.buildMosaic()
+    
 main()

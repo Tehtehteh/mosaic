@@ -5,3 +5,6 @@
 __pycache__/*
 __pycache__
 *.jpg
+storage.bak
+storage.dir
+storage.dat

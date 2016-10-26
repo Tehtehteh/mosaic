@@ -1,3 +1,4 @@
+import sys
 try:
     from imgbuild import imgbuild
 except ImportError:
@@ -5,14 +6,15 @@ except ImportError:
 
 
 def main():
-    im = imgbuild.imgbuilder()
-    #im.getImageLinks()
-    #im.downloadImages()
-    #print(im.files)
-    #im.buildShelve()
-    #im.buildThumbnails()
-    #print(im.thumbnails)
-    mosaic = imgbuild.mosaicbuilder()
-    mosaic.buildMosaic()
+    if sys.argv[1]:
+        im = imgbuild.imgbuilder(query=sys.argv[1])
+    else:
+        print('Query for images required.')
+    if sys.argv[2]:
+        mosaic = imgbuild.mosaicbuilder(image=sys.argv[2])
+        mosaic.buildMosaic()
+    else:
+        print('Input picture required!') 
     
-main()
+if __name__=='__main__':
+    main()

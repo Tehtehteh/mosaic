@@ -1,13 +1,10 @@
 import requests
 import shelve
 import os
-from glob import glob
 from PIL import Image
 import json
 from operator import sub
 
-#todo [{'url':url, 'name': name}] for file list when creating initial image storage --- Done
-#todo build shelve based of PIL 
 
 class imganalysis:
     def __init__(self, path=None):
@@ -32,10 +29,14 @@ class imganalysis:
         return (meanr/self.pixcount, meang/self.pixcount, meanb/self.pixcount)
 
 class mosaicbuilder:
-    def __init__(self, storage=os.path.join(os.path.dirname(os.path.dirname(__file__)), 'storage'), image='1.jpg'):
-        self.image = imganalysis(image)
+    def __init__(self, storage=os.path.join(os.path.dirname(__file__), 'storage'), image, output='mosaic_' + image):
+        self.image = Image.open(image)
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
         self.storage = storage
-        self.rgbs = None
+        self.pixelgetter = self.image.load()
+        self.rgbs = dict()
+        self.output = output
         self.openStorage()
 
     def openStorage(self):
@@ -44,21 +45,28 @@ class mosaicbuilder:
                 self.rgbs[image] = handle[image]
 
 
-    def buildMosaic(self):
-        #assert image, storage != (None, None), 'No image/storage supplied'
-        result = Image.new('RGB', (self.image.width, self.image.height)).load()
-        for num, x in enumerate(range(self.image.width)):
-            print('Processing %i of width %i' % (num, self.image.width))
-            for numy, y in enumerate(range(self.image.height)):
-                print('Processing %i of height %i' % (numy, self.image.height))
-                curPix = self.image.pixelgetter[x, y]
+    def buildMosaic(self, size=64):
+        result = Image.new('RGB', (self.width*size, self.height*size))
+        curw = 0
+        curh = 0
+        for x in range(0, self.width):
+            for y in range(0, self.height):
                 min = (255, 255, 255)
-                for pix in self.storage:
-                    temp = tuple(map(lambda x: abs(x), map(sub, self.storage[pix])))
-                    if temp < min:
+                mmin = ''
+                curPix = self.pixelgetter[x,y]
+                for pix in self.rgbs:                    
+                    temp = tuple(map(lambda x: abs(x), map(sub, curPix, self.rgbs[pix])))                    
+                    if temp < min or not mmin:
                         min = temp
-                result[x,y] = min
-        result.save('result.jpg')
+                        mmin = pix
+                print('Best matching pix for {} is {}'.format(curPix, self.rgbs[pix]))
+                thumbnail = Image.open(os.path.join(os.path.dirname(__file__), 'thumbnails', mmin))
+                result.paste(thumbnail, box=(curw, curh))
+                curh += size
+                if curh == self.height*size:
+                    curh = 0
+                    curw += size
+        result.save(self.output)
                 
 
 
@@ -72,8 +80,13 @@ class imgbuilder:
             self.url = 'https://api.flickr.com/services/rest/?method=flickr.photos.search&text={}&api_key={}&format=json'.format(self.query, self.secret)
         self.storage = os.path.join(os.path.dirname(__file__), 'storage')
         self.thumbdir = os.path.join(os.path.dirname(__file__), 'thumbnails')
-        self.thumbnails = [thumbnail for thumbnail in self.getThumbnails()]
+        self.getImageLinks()
+        self.downloadImages()
         self.files = [file for file in self.getFiles()]
+        self.buildShelve()
+        self.buildThumbnails()
+        self.thumbnails = [thumbnail for thumbnail in self.getThumbnails()]
+        
 
     def getFiles(self):
         for file in filter(lambda x: x.endswith('.jpg'), os.listdir(self.storage)):
@@ -83,13 +96,13 @@ class imgbuilder:
         for file in os.listdir(self.thumbdir):
             yield file
 
-    def buildThumbnails(self, size=(64,16)):
+    def buildThumbnails(self, size=(64,64)):
         if not os.path.exists(os.path.join(self.storage, self.thumbdir)):
             os.mkdir(os.path.join(self.storage, self.thumbdir))
         for num, image in enumerate(self.files):
             print('Processing %i thumbnail of %i' %(num, len(self.files)))            
             im = Image.open(os.path.join(self.storage, image))
-            im.thumbnail(size)
+            im = im.resize(size)
             im.save(os.path.join(self.thumbdir, image))
 
     def getImageLinks(self):
@@ -111,17 +124,16 @@ class imgbuilder:
         for num, photo in enumerate(self.links):
             data = requests.get(photo['url'], stream=True)
             with open(os.path.join(self.storage, '{}.jpg'.format(photo['name'])), 'wb') as handle:
-                print('Processing %i of %i' % (num + 1, len(self.links)))
+                print('Processing %i link of %i' % (num + 1, len(self.links)))
                 for buff in data.iter_content():
                     handle.write(buff)
 
     def buildShelve(self):
-        print('Building shelve.')
         for num, image in enumerate(self.files):
-            print('Processing %i of %i' % (num + 1, len(self.files)))
+            print('(Shelve): Processing %i image file of %i' % (num + 1, len(self.files)))
             im = imganalysis(os.path.join(self.storage, image))
             pixel = im.getMeanPix()
-            with shelve.open('storage') as handle:
+            with shelve.open(os.path.join(os.path.dirname(__file__),'storage')) as handle:
                 handle[image] = pixel
 
     

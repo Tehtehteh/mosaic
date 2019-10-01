@@ -1,20 +1,17 @@
-import sys
-try:
-    from imgbuild import imgbuild
-except ImportError:
-    print('No module found.')
+import asyncio
+
+from logger import setup_logging
+from args import parse_args
+from mosaic_workers.image_downloader import FlickrImageDownloader
 
 
-def main():
-    if sys.argv[1]:
-        im = imgbuild.imgbuilder(query=sys.argv[1])
-    else:
-        print('Query for images required.')
-    if sys.argv[2]:
-        mosaic = imgbuild.mosaicbuilder(image=sys.argv[2])
-        mosaic.buildMosaic()
-    else:
-        print('Input picture required!') 
-    
-if __name__=='__main__':
-    main()
+async def main():
+    setup_logging()
+    config = parse_args()
+    image_downloader = FlickrImageDownloader(storage_dir=config.storage_dir,
+                                             token=config.token)
+    await image_downloader.download_images(search_term=config.search_term)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
